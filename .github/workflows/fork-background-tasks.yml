@@ -38,7 +38,7 @@ jobs:
           cache: false
       - name: Unit tests of the touched crates
         run: pixi run -e rust-test cargo nextest run --cargo-profile fast-build -p pixi_manifest -p pixi_task
-      - name: Build pixi
-        run: pixi run -e rust-test cargo build --profile fast-build --bin pixi
+      - name: Build pixi and the build backends
+        run: pixi run -e rust-test cargo build --profile fast-build --workspace
       - name: Run the integration tests of pixi run
         run: pixi run -e python-test pytest --pixi-build=fast-build -m "not extra_slow" tests/integration_python/test_run_cli.py
