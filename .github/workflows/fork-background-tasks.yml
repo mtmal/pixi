@@ -41,12 +41,14 @@ jobs:
         run: pixi run -e rust-test cargo nextest run --cargo-profile fast-build -p pixi_manifest -p pixi_task
       - name: Build pixi and the build backends
         run: pixi run -e rust-test cargo build --profile fast-build --workspace
-      - name: Show the build output
+      - name: Put the binaries where the integration tests look for them
         run: |
-          echo "CARGO_TARGET_DIR=$CARGO_TARGET_DIR"
-          pixi run -e rust-test bash -c 'echo "activated CARGO_TARGET_DIR=$CARGO_TARGET_DIR"'
-          ls target || true
-          ls target/pixi || true
-          ls target/pixi/fast-build | head -30 || true
+          # On Windows cargo writes into a directory named after the target triple.
+          triple_dir=target/pixi/x86_64-pc-windows-msvc/fast-build
+          if [ -d "$triple_dir" ]; then
+            mkdir -p target/pixi/fast-build
+            cp "$triple_dir"/*.exe target/pixi/fast-build/
+          fi
+          ls target/pixi/fast-build
       - name: Run the integration tests of pixi run
         run: pixi run -e python-test pytest --pixi-build=fast-build -m "not extra_slow" tests/integration_python/test_run_cli.py
