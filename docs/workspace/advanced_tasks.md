@@ -134,6 +134,56 @@ the first dependency will still run in the `py311` environment as specified in t
 In the example above, the `test-all` task runs the `test` task in both Python 3.11 and 3.12 environments,
 allowing you to verify compatibility across different Python versions with a single command.
 
+### Background tasks
+
+Some tasks have to be running while another task does its work, for example a simulator that a controller talks to.
+Mark such a dependency with `background = true` and Pixi starts it, continues with the next task without waiting for it, and stops it when `pixi run` ends:
+
+```toml title="pixi.toml"
+--8<-- "docs/source_files/pixi_workspaces/background_tasks/pixi.toml:tasks"
+```
+
+Running `pixi run control-in-simulator` does the following:
+
+1. It starts `simulator` in the background.
+2. It runs `wait-for-simulator` and waits until the simulator accepts connections.
+3. It runs `control`.
+4. It stops the simulator, whether `control` succeeded or failed.
+
+??? example "The scripts of this example"
+    The scripts only use the Python standard library.
+
+    ```python title="simulator.py"
+    --8<-- "docs/source_files/pixi_workspaces/background_tasks/simulator.py"
+    ```
+
+    ```python title="wait_for_simulator.py"
+    --8<-- "docs/source_files/pixi_workspaces/background_tasks/wait_for_simulator.py"
+    ```
+
+    ```python title="controller.py"
+    --8<-- "docs/source_files/pixi_workspaces/background_tasks/controller.py"
+    ```
+
+Things to know about background tasks:
+
+- Pixi doesn't check whether a background task is ready.
+  List a task that waits for it, such as `wait-for-simulator`, right after it.
+  Dependencies run in the order in which they are listed.
+- The exit code of a background task is ignored, like for a shell job started with `&`.
+  `pixi run` exits with the exit code of the tasks that run in the foreground.
+- A background task has no standard input. It writes to the same standard output and error as Pixi.
+- Background tasks are never skipped by the [task cache](#caching) and don't write to it.
+- A task can't be a background dependency in one place and a foreground dependency in another.
+- When the run ends, Pixi stops the background task.
+  On Linux and macOS it sends `SIGTERM` and kills the task after 10 seconds if it is still running.
+  On Windows it terminates the task immediately, so it can't clean up.
+  The signal only reaches the process of the task itself, so a wrapper script should `exec` the program it starts.
+
+Pixi only stops the processes it has started.
+To avoid restarting a slow simulator while you work on the controller, start it yourself with `pixi run simulator` in one terminal and run `pixi run control` in another one as often as you like.
+`control` only depends on `wait-for-simulator`, so it uses whichever simulator is running.
+
 ## Working directory
 
 Pixi tasks support the definition of a working directory.
