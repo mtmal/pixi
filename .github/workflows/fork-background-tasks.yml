@@ -1,0 +1,44 @@
+name: Fork CI for background tasks
+
+on:
+  push:
+    branches:
+      - ci/background-task-dependencies
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_INCREMENTAL: 0
+  CARGO_TERM_COLOR: always
+  PIXI_NO_TELEMETRY: 1
+  PYTHONIOENCODING: utf-8
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  test:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
+        with:
+          environments: rust-test python-test
+          cache: false
+      - name: Unit tests of the touched crates
+        run: pixi run -e rust-test cargo nextest run --cargo-profile fast-build -p pixi_manifest -p pixi_task
+      - name: Build pixi
+        run: pixi run -e rust-test cargo build --profile fast-build --bin pixi
+      - name: Run the integration tests of pixi run
+        run: pixi run -e python-test pytest --pixi-build=fast-build -m "not extra_slow" tests/integration_python/test_run_cli.py
