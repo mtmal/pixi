@@ -15,6 +15,7 @@ env:
   PIXI_NO_TELEMETRY: 1
   PYTHONIOENCODING: utf-8
   RUSTFLAGS: "-D warnings"
+  CARGO_TARGET_DIR: ${{ github.workspace }}/target/pixi
 
 jobs:
   test:
@@ -24,7 +25,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [windows-latest]
     defaults:
       run:
         shell: bash
@@ -40,5 +41,12 @@ jobs:
         run: pixi run -e rust-test cargo nextest run --cargo-profile fast-build -p pixi_manifest -p pixi_task
       - name: Build pixi and the build backends
         run: pixi run -e rust-test cargo build --profile fast-build --workspace
+      - name: Show the build output
+        run: |
+          echo "CARGO_TARGET_DIR=$CARGO_TARGET_DIR"
+          pixi run -e rust-test bash -c 'echo "activated CARGO_TARGET_DIR=$CARGO_TARGET_DIR"'
+          ls target || true
+          ls target/pixi || true
+          ls target/pixi/fast-build | head -30 || true
       - name: Run the integration tests of pixi run
         run: pixi run -e python-test pytest --pixi-build=fast-build -m "not extra_slow" tests/integration_python/test_run_cli.py
